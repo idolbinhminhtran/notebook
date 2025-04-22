@@ -1,0 +1,90 @@
+
+
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Điểm danh đại biểu</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="container">
+    <h3>Điểm danh đại biểu</h3>
+    <input type="text" id="nameInput" placeholder="Nhập tên của bạn" autocomplete="off" />
+    <div id="suggestions"></div>
+    <button id="searchBtn">Tìm kiếm</button>
+    <p id="message"></p>
+</div>
+</body>
+<script>
+  const input = document.getElementById('nameInput');
+  const suggestionsDiv = document.getElementById('suggestions');
+  const msg = document.getElementById('message');
+  let participants = [];
+
+  // Load all participant names
+  fetch('/api/participants')
+    .then(res => res.json())
+    .then(data => participants = data)
+    .catch(console.error);
+
+  // Filter & show suggestions as you type
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    suggestionsDiv.innerHTML = '';
+    if (!q) return;
+    participants
+      .filter(name => name.toLowerCase().includes(q))
+      .slice(0, 10)
+      .forEach(name => {
+        const div = document.createElement('div');
+        div.textContent = name;
+        div.className = 'suggestion-item';
+        div.onclick = () => {
+          input.value = name;
+          suggestionsDiv.innerHTML = '';
+        };
+        suggestionsDiv.appendChild(div);
+      });
+  });
+
+  // Handle check‑in on button click
+  document.getElementById('searchBtn').addEventListener('click', () => {
+    const name = input.value.trim();
+    if (!name) {
+      msg.classList.add('error');
+      msg.textContent = 'Vui lòng nhập tên.';
+      return;
+    }
+    fetch('/api/checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        msg.classList.remove('error');
+        msg.textContent = `Chúc mừng ${name}, điểm danh thành công!`;
+      } else {
+        msg.classList.add('error');
+        msg.textContent = data.error || 'Lỗi điểm danh.';
+      }
+    })
+    .catch(() => {
+      msg.classList.add('error');
+      msg.textContent = 'Lỗi server.';
+    });
+  });
+
+  // Submit on Enter
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      document.getElementById('searchBtn').click();
+    }
+  });
+</script>
+</html>
+</body>
+</html>
