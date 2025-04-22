@@ -1,0 +1,30 @@
+{
+  "dependencies": {
+    "better-sqlite3": "^11.9.1",
+    "cloudinary": "^2.6.0",
+    "cors": "^2.8.5",
+    "csv-parser": "^3.2.0",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "multer": "^1.4.5-lts.2"
+  },
+  "name": "notebook",
+  "version": "1.0.0",
+  "main": "create_db.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/idolbinhminhtran/notebook.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/idolbinhminhtran/notebook/issues"
+  },
+  "homepage": "https://github.com/idolbinhminhtran/notebook#readme",
+  "description": ""
+}

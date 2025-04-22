@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Check-in Đại hội Đại biểu</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="checkin-container">
+    <h2>Check-in Đại hội Đại biểu</h2>
+    <input type="text" id="search" placeholder="Tìm tên của bạn...">
+    <ul id="name-list"></ul>
+    <div class="checkin-back-action">
+      <a href="index.html"><button>← Quay về Trang Chủ</button></a>
+    </div>
+  </div>
+  <script>
+    function showNotification(message) {
+      const container = document.querySelector('.checkin-container');
+      const notif = document.createElement('div');
+      notif.className = 'checkin-notif';
+      notif.textContent = message;
+      container.appendChild(notif);
+      setTimeout(() => notif.remove(), 3000);
+    }
+    const listEl = document.getElementById('name-list');
+    const searchEl = document.getElementById('search');
+    let participants = [];
+
+    async function loadParticipants() {
+      try {
+        const res = await fetch('/api/participants');
+        participants = await res.json();
+      } catch (err) {
+        console.error('Failed to load participants:', err);
+      }
+    }
+
+    function renderList(filter = '') {
+      if (!filter.trim()) {
+        listEl.innerHTML = '';
+        return;
+      }
+      const normalize = str => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const filtered = participants.filter(p =>
+        normalize(p.name).includes(normalize(filter))
+      );
+      listEl.innerHTML = '';
+      filtered.forEach(p => {
+        const li = document.createElement('li');
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.id = 'p-' + p.id;
+        checkbox.addEventListener('change', async () => {
+          if (checkbox.checked) {
+            const res = await fetch('/api/checkin', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: p.id })
+            });
+            const data = await res.json();
+            if (data.success) showNotification('Điểm danh thành công!');
+          }
+        });
+
+        const label = document.createElement('label');
+        label.htmlFor = 'p-' + p.id;
+        label.textContent = p.name;
+
+        // Display checkbox, name label, and position
+        const posSpan = document.createElement('span');
+        posSpan.className = 'position';
+        posSpan.textContent = p.position;
+        li.append(checkbox, label, posSpan);
+        listEl.appendChild(li);
+      });
+    }
+
+    searchEl.addEventListener('input', (e) => renderList(e.target.value));
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadParticipants();
+      renderList('');
+    });
+  </script>
+</body>
+</html>
