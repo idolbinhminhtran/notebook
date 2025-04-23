@@ -58,6 +58,7 @@
             <!-- the “frame” overlay -->
            <div class="scanner-overlay">
               <div class="scanner-frame"></div>
+               <div class="scanner-animation"></div>
             </div>
          </div>
 
@@ -188,7 +189,11 @@
     }
 
     async function faceCheckinFlow() {
+        const scanBar = document.querySelector('.scanner-animation');
         toggleButton('faceScanBtn', true);
+
+        scanBar.classList.add('scanning');
+
         try {
             // 1) Capture a down-sampled face image from the live preview
             const blob = await captureAndRecognize();
@@ -242,6 +247,9 @@
         } finally {
             toggleButton('faceScanBtn', false);
         }
+
+        scanBar.classList.remove('scanning');
+        toggleButton('faceScanBtn', false);
     }
 
 
