@@ -2,178 +2,251 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Điểm danh đại biểu</title>
     <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
 </head>
 <body>
 <div class="container checkin-container">
     <div class="logo-wrapper">
-        <img src="ring.png" alt="Outer Ring" class="logo-ring">
-        <img src="ring2.png" alt="Secondary Ring" class="logo-ring2">
-        <img src="logo.png" alt="Inner Logo" class="logo-inner">
+        <img src="ring.png" class="logo-ring" alt="Outer Ring">
+        <img src="ring2.png" class="logo-ring2" alt="Secondary Ring">
+        <img src="logo.png" class="logo-inner" alt="Inner Logo">
     </div>
     <h3>Điểm danh đại biểu</h3>
-    
+
     <div class="tabs">
-        <div class="tab active" data-tab="manual"><i class="fas fa-keyboard"></i> Nhập tên</div>
-        <div class="tab" data-tab="qr"><i class="fas fa-qrcode"></i> Quét Khuân Mặt</div>
+        <div class="tab active" data-tab="manual">
+            <i class="fas fa-keyboard"></i> Nhập tên
+        </div>
+        <div class="tab" data-tab="qr">
+            <i class="fas fa-user-circle"></i> Quét khuôn mặt
+        </div>
     </div>
 
+    <!-- Manual Entry -->
     <div class="tab-content active" id="manual-tab">
         <div class="form-group">
             <div class="icon-input">
                 <i class="fas fa-user"></i>
                 <div class="autocomplete">
-                    <input type="text" id="nameInput" placeholder="Nhập tên của bạn" autocomplete="off" />
+                    <input
+                            type="text"
+                            id="nameInput"
+                            placeholder="Nhập tên của bạn"
+                            autocomplete="off"
+                    />
                     <div id="suggestions"></div>
                 </div>
             </div>
         </div>
-        <button id="searchBtn"><i class="fas fa-check-circle"></i> Điểm danh</button>
+        <button id="searchBtn">
+            <i class="fas fa-check-circle"></i> Điểm danh
+        </button>
     </div>
 
-    <div class="tab-content" id="qr-tab">
-        <div class="qr-scanner">
-            <div class="scanner-overlay">
-                <div class="scanner-frame"></div>
+    <!-- Face Check-In -->
+        <div class="tab-content" id="qr-tab">
+          <div class="qr-scanner">
+           <!-- live video preview -->
+            <video id="videoPreview" class="scanner-video" autoplay muted playsinline></video>
+
+            <!-- the “frame” overlay -->
+           <div class="scanner-overlay">
+              <div class="scanner-frame"></div>
             </div>
-            <div class="scanner-animation"></div>
-            <p class="scanner-text">Đặt mặt vào khung để quét</p>
-            <button id="startScanBtn"><i class="fas fa-camera"></i> Bắt đầu quét</button>
-        </div>
-    </div>
+         </div>
+
+         <p class="scanner-text">Đặt mặt vào khung để quét</p>
+          <div class="face-btn-wrapper">
+            <button id="faceScanBtn">
+              <i class="fas fa-user-circle"></i> Quét khuôn mặt
+           </button>
+         </div>
+       </div>
 
     <div id="message-container">
         <p id="message"></p>
     </div>
-    <a href="index.html"><button class="back-btn"><i class="fas fa-home"></i> Quay lại trang chủ</button></a>
+
+    <a href="index.html">
+        <button class="back-btn">
+            <i class="fas fa-home"></i> Quay lại trang chủ
+        </button>
+    </a>
 </div>
 
 <script>
-  const input = document.getElementById('nameInput');
-  const suggestionsDiv = document.getElementById('suggestions');
-  const msg = document.getElementById('message');
-  const msgContainer = document.getElementById('message-container');
-  let participants = [];
+    const input = document.getElementById('nameInput');
+    const suggestionsDiv = document.getElementById('suggestions');
+    const msg = document.getElementById('message');
+    const msgContainer = document.getElementById('message-container');
+    const videoEl = document.getElementById('videoPreview');
+    let participants = [];
+    let videoStream = null;
 
-  // Tab switching
-  document.querySelectorAll('.tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      
-      tab.classList.add('active');
-      document.getElementById(tab.getAttribute('data-tab') + '-tab').classList.add('active');
-      
-      // Hide message when switching tabs
-      msgContainer.classList.remove('show');
+    // Tab switching + camera control
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.getAttribute('data-tab') + '-tab').classList.add('active');
+            msgContainer.classList.remove('show');
+
+            if (tab.getAttribute('data-tab') === 'qr') {
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(stream => {
+                        videoStream = stream;
+                        videoEl.srcObject = stream;
+                    })
+                    .catch(() => showMessage('⚠️ Không thể bật camera', 'error'));
+            } else {
+                if (videoStream) {
+                    videoStream.getTracks().forEach(t => t.stop());
+                    videoEl.srcObject = null;
+                    videoStream = null;
+                }
+            }
+        });
     });
-  });
 
-  // QR Scanner simulation
-  document.getElementById('startScanBtn').addEventListener('click', function() {
-    const scanner = document.querySelector('.scanner-animation');
-    scanner.classList.add('scanning');
-    this.disabled = true;
-    this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang quét...';
-    
-    // Simulate scanning after 3 seconds
-    setTimeout(() => {
-      scanner.classList.remove('scanning');
-      this.disabled = false;
-      this.innerHTML = '<i class="fas fa-camera"></i> Bắt đầu quét';
-      
-      // Show success message
-      msg.classList.remove('error');
-      msg.innerHTML = '<i class="fas fa-check-circle"></i> Xin chào Nguyễn Văn A, điểm danh thành công!';
-      msgContainer.classList.add('show', 'success');
-    }, 3000);
-  });
+    // Load participant names
+    fetch('/api/participants')
+        .then(res => res.json())
+        .then(data => (participants = data))
+        .catch(console.error);
 
-  // Load all participant names
-  fetch('/api/participants')
-    .then(res => res.json())
-    .then(data => participants = data)
-    .catch(console.error);
-
-  // Filter & show suggestions as you type
-  input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    suggestionsDiv.innerHTML = '';
-    if (!q) return;
-    participants
-      .filter(name => name.toLowerCase().includes(q))
-      .slice(0, 10)
-      .forEach(name => {
-        const div = document.createElement('div');
-        div.textContent = name;
-        div.className = 'suggestion-item';
-        div.onclick = () => {
-          input.value = name;
-          suggestionsDiv.innerHTML = '';
-        };
-        suggestionsDiv.appendChild(div);
-      });
-  });
-
-  // Handle check‑in on button click
-  document.getElementById('searchBtn').addEventListener('click', () => {
-    const name = input.value.trim();
-    if (!name) {
-      msg.classList.add('error');
-      msg.innerHTML = '<i class="fas fa-exclamation-circle"></i> Vui lòng nhập tên.';
-      msgContainer.classList.add('show');
-      return;
-    }
-    
-    // Add loading state
-    const originalBtnText = document.getElementById('searchBtn').innerHTML;
-    document.getElementById('searchBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý...';
-    document.getElementById('searchBtn').disabled = true;
-    
-    fetch('/api/checkin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
-    })
-    .then(r => r.json())
-    .then(data => {
-      // Reset button
-      document.getElementById('searchBtn').innerHTML = originalBtnText;
-      document.getElementById('searchBtn').disabled = false;
-      
-      if (data.success) {
-        msg.classList.remove('error');
-        msg.innerHTML = `<i class="fas fa-check-circle"></i> Chúc mừng ${name}, điểm danh thành công!`;
-        msgContainer.classList.add('show', 'success');
-        msgContainer.classList.remove('error');
-      } else {
-        msg.classList.add('error');
-        msg.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${data.error || 'Lỗi điểm danh.'}`;
-        msgContainer.classList.add('show', 'error');
-        msgContainer.classList.remove('success');
-      }
-    })
-    .catch(() => {
-      // Reset button
-      document.getElementById('searchBtn').innerHTML = originalBtnText;
-      document.getElementById('searchBtn').disabled = false;
-      
-      msg.classList.add('error');
-      msg.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Lỗi server.';
-      msgContainer.classList.add('show', 'error');
-      msgContainer.classList.remove('success');
+    // Autocomplete
+    input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        suggestionsDiv.innerHTML = '';
+        if (!q) return;
+        participants
+            .filter(name => name.toLowerCase().includes(q))
+            .slice(0, 10)
+            .forEach(name => {
+                const div = document.createElement('div');
+                div.textContent = name;
+                div.className = 'suggestion-item';
+                div.onclick = () => {
+                    input.value = name;
+                    suggestionsDiv.innerHTML = '';
+                };
+                suggestionsDiv.appendChild(div);
+            });
     });
-  });
 
-  // Submit on Enter
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      document.getElementById('searchBtn').click();
+    // Manual check-in
+    document.getElementById('searchBtn').addEventListener('click', () => {
+        const name = input.value.trim();
+        if (!name) { showMessage('Vui lòng nhập tên.', 'error'); return; }
+        toggleButton('searchBtn', true);
+        fetch('/api/checkin', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        })
+            .then(r => r.json())
+            .then(data => {
+                toggleButton('searchBtn', false);
+                if (data.success) showMessage(`Chúc mừng ${name}, điểm danh thành công!`, 'success');
+                else showMessage(data.error || 'Lỗi điểm danh.', 'error');
+            })
+            .catch(() => { toggleButton('searchBtn', false); showMessage('Lỗi server.', 'error'); });
+    });
+
+    function showMessage(text, type) {
+        msgContainer.classList.remove('success', 'error');
+        msgContainer.classList.add('show', type);
+        msg.innerHTML = `<i class="fas fa-${type==='success'? 'check-circle':'exclamation-circle'}"></i> ${text}`;
     }
-  });
+
+    function toggleButton(id, loading) {
+        const btn = document.getElementById(id);
+        if (loading) {
+            btn.dataset.orig = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Đang xử lý…';
+            btn.disabled = true;
+        } else {
+            btn.innerHTML = btn.dataset.orig;
+            btn.disabled = false;
+        }
+    }
+
+    // FACE CHECK-IN LOGIC (reuse videoEl)
+    async function captureAndRecognize() {
+        if (!videoEl.srcObject) throw new Error('Chưa bật camera');
+        const canvas = document.createElement('canvas');
+        const SIZE = 256;
+        canvas.width = canvas.height = SIZE;
+        canvas.getContext('2d').drawImage(videoEl, 0, 0, SIZE, SIZE);
+        return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.7));
+    }
+
+    async function faceCheckinFlow() {
+        toggleButton('faceScanBtn', true);
+        try {
+            // 1) Capture a down-sampled face image from the live preview
+            const blob = await captureAndRecognize();
+            const form = new FormData();
+            form.append('image', blob, 'face.jpg');
+
+            // 2) Call Python face-recognition service
+            const rec = await fetch('http://127.0.0.1:5000/recognize', {
+                method: 'POST',
+                body: form
+            }, { mode: 'cors' });
+
+            if (!rec.ok) {
+                // Extract error code from response
+                const errJSON = await rec.json();
+                const errCode = errJSON.error || 'unknown';
+                throw new Error(errCode);
+            }
+
+            // 3) On success, get the recognized name
+            const { name } = await rec.json();
+
+            // 4) Forward to your Node check-in endpoint
+            const res = await fetch('/api/checkin', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                showMessage(`Chúc mừng ${name}, điểm danh thành công!`, 'success');
+            } else {
+                showMessage(`${data.error || 'Lỗi điểm danh.'}`, 'error');
+            }
+        } catch (e) {
+            // Map raw error codes to friendly Vietnamese messages
+            let friendly;
+            switch (e.message) {
+                case 'no_file':
+                case 'no_face':
+                    friendly = 'Không phát hiện khuôn mặt. Vui lòng thử lại.';
+                    break;
+                case 'unknown':
+                    friendly = 'Khuôn mặt không khớp với danh sách đại biểu.';
+                    break;
+                default:
+                    friendly = 'Đã xảy ra lỗi. Vui lòng thử lại sau.';
+            }
+            showMessage(friendly, 'error');
+        } finally {
+            toggleButton('faceScanBtn', false);
+        }
+    }
+
+
+    document.getElementById('faceScanBtn').addEventListener('click', faceCheckinFlow);
+    input.addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('searchBtn').click(); });
 </script>
 </body>
 </html>

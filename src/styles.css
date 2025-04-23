@@ -547,3 +547,68 @@ h3::after {
   transform: translateY(0);
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
+
+.qr-scanner {
+  position: relative;
+  width: 320px;
+  height: 240px;
+  margin: 0 auto;
+  background: #000; /* fallback if no camera */
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+/* the live camera feed */
+.scanner-video {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* mirror for user */
+}
+
+/* semi-transparent overlay + border frame */
+.scanner-overlay {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+
+.scanner-frame {
+  position: absolute;
+  top: 8%; left: 8%;
+  width: 84%; height: 84%;
+  border: 4px solid rgba(255,255,255,0.8);
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.face-btn-wrapper {
+  text-align: center;
+  margin-top: 12px;
+}
+
+#faceScanBtn {
+  background: linear-gradient(to bottom, #71ebf2, #0098e7);
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  font-size: 1rem;
+  border-radius: 30px;
+  font-weight: 600;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+#faceScanBtn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+}
+
+#faceScanBtn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
