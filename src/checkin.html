@@ -196,7 +196,7 @@
             form.append('image', blob, 'face.jpg');
 
             // 2) Call Python face-recognition service
-            const rec = await fetch('http://127.0.0.1:5000/recognize', {
+            const rec = await fetch('http://faceapi-production.up.railway.app:8080/recognize', {
                 method: 'POST',
                 body: form
             }, { mode: 'cors' });
