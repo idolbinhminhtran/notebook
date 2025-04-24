@@ -208,9 +208,8 @@
 
             if (!rec.ok) {
                 // Extract error code from response
-                const errJSON = await rec.json();
-                const errCode = errJSON.error || 'unknown';
-                throw new Error(errCode);
+                const { error: errCode } = await rec.json();
+                throw new Error(errCode === 'unknown' ? 'not_found' : errCode);
             }
 
             // 3) On success, get the recognized name
@@ -237,7 +236,7 @@
                 case 'no_face':
                     friendly = 'Không phát hiện khuôn mặt. Vui lòng thử lại.';
                     break;
-                case 'unknown':
+                case 'not_found':
                     friendly = 'Khuôn mặt không khớp với danh sách đại biểu.';
                     break;
                 default:
