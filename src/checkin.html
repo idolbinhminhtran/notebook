@@ -50,25 +50,21 @@
     </div>
 
     <!-- Face Check-In -->
-        <div class="tab-content" id="qr-tab">
-          <div class="qr-scanner">
-           <!-- live video preview -->
+    <div class="tab-content" id="qr-tab">
+        <div class="qr-scanner">
             <video id="videoPreview" class="scanner-video" autoplay muted playsinline></video>
-
-            <!-- the “frame” overlay -->
-           <div class="scanner-overlay">
-              <div class="scanner-frame"></div>
-               <div class="scanner-animation"></div>
+            <div class="scanner-overlay">
+                <div class="scanner-frame"></div>
+                <div class="scanner-animation"></div>
             </div>
-         </div>
-
-         <p class="scanner-text">Đặt mặt vào khung để quét</p>
-          <div class="face-btn-wrapper">
+        </div>
+        <p class="scanner-text">Đặt mặt vào khung để quét</p>
+        <div class="face-btn-wrapper">
             <button id="faceScanBtn">
-              <i class="fas fa-user-circle"></i> Quét khuôn mặt
-           </button>
-         </div>
-       </div>
+                <i class="fas fa-user-circle"></i> Quét khuôn mặt
+            </button>
+        </div>
+    </div>
 
     <div id="message-container">
         <p id="message"></p>
@@ -82,11 +78,20 @@
 </div>
 
 <script>
+    // Helper: strip accents and lowercase
+    function normalize(text = '') {
+        return text
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+    }
+
     const input = document.getElementById('nameInput');
     const suggestionsDiv = document.getElementById('suggestions');
-    const msg = document.getElementById('message');
     const msgContainer = document.getElementById('message-container');
+    const msg = document.getElementById('message');
     const videoEl = document.getElementById('videoPreview');
+
     let participants = [];
     let videoStream = null;
 
@@ -119,16 +124,18 @@
     // Load participant names
     fetch('/api/participants')
         .then(res => res.json())
-        .then(data => (participants = data))
+        .then(data => participants = data)
         .catch(console.error);
 
-    // Autocomplete
+    // Autocomplete with normalized filter
     input.addEventListener('input', () => {
-        const q = input.value.trim().toLowerCase();
+        const raw = input.value.trim();
+        const qNorm = normalize(raw);
         suggestionsDiv.innerHTML = '';
-        if (!q) return;
+        if (!qNorm) return;
+
         participants
-            .filter(name => name.toLowerCase().includes(q))
+            .filter(name => normalize(name).includes(qNorm))
             .slice(0, 10)
             .forEach(name => {
                 const div = document.createElement('div');
@@ -142,30 +149,14 @@
             });
     });
 
-    // Manual check-in
-    document.getElementById('searchBtn').addEventListener('click', () => {
-        const name = input.value.trim();
-        if (!name) { showMessage('Vui lòng nhập tên.', 'error'); return; }
-        toggleButton('searchBtn', true);
-        fetch('/api/checkin', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name })
-        })
-            .then(r => r.json())
-            .then(data => {
-                toggleButton('searchBtn', false);
-                if (data.success) showMessage(`Chúc mừng ${name}, điểm danh thành công!`, 'success');
-                else showMessage(data.error || 'Lỗi điểm danh.', 'error');
-            })
-            .catch(() => { toggleButton('searchBtn', false); showMessage('Lỗi server.', 'error'); });
-    });
-
+    // Show message in banner
     function showMessage(text, type) {
-        msgContainer.classList.remove('success', 'error');
+        msgContainer.className = '';
         msgContainer.classList.add('show', type);
-        msg.innerHTML = `<i class="fas fa-${type==='success'? 'check-circle':'exclamation-circle'}"></i> ${text}`;
+        msg.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${text}`;
     }
 
+    // Toggle button loading state
     function toggleButton(id, loading) {
         const btn = document.getElementById(id);
         if (loading) {
@@ -178,7 +169,36 @@
         }
     }
 
-    // FACE CHECK-IN LOGIC (reuse videoEl)
+    // Manual check-in
+    document.getElementById('searchBtn').addEventListener('click', () => {
+        const nameRaw = input.value.trim();
+        if (!nameRaw) return showMessage('Vui lòng nhập tên.', 'error');
+
+        // Pre-check against participants
+        const found = participants.some(p => normalize(p) === normalize(nameRaw));
+        if (!found) {
+            return showMessage('Tên này không có trong danh sách đại biểu.', 'error');
+        }
+
+        toggleButton('searchBtn', true);
+        fetch('/api/checkin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: nameRaw })
+        })
+            .then(r => r.json())
+            .then(data => {
+                toggleButton('searchBtn', false);
+                if (data.success) showMessage(`Chúc mừng ${nameRaw}, điểm danh thành công!`, 'success');
+                else showMessage(data.error || 'Lỗi điểm danh.', 'error');
+            })
+            .catch(() => {
+                toggleButton('searchBtn', false);
+                showMessage('Lỗi server.', 'error');
+            });
+    });
+
+    // FACE CHECK-IN LOGIC (unchanged)
     async function captureAndRecognize() {
         if (!videoEl.srcObject) throw new Error('Chưa bật camera');
         const canvas = document.createElement('canvas');
@@ -191,31 +211,23 @@
     async function faceCheckinFlow() {
         const scanBar = document.querySelector('.scanner-animation');
         toggleButton('faceScanBtn', true);
-
         scanBar.classList.add('scanning');
-
         try {
-            // 1) Capture a down-sampled face image from the live preview
             const blob = await captureAndRecognize();
             const form = new FormData();
             form.append('image', blob, 'face.jpg');
 
-            // 2) Call Python face-recognition services
             const rec = await fetch('https://faceapi-production.up.railway.app/recognize', {
-                method: 'POST',
-                body: form
-            }, { mode: 'cors' });
+                method: 'POST', body: form
+            });
 
             if (!rec.ok) {
-                // Extract error code from response
                 const { error: errCode } = await rec.json();
                 throw new Error(errCode === 'unknown' ? 'not_found' : errCode);
             }
 
-            // 3) On success, get the recognized name
             const { name } = await rec.json();
-
-            // 4) Forward to your Node check-in endpoint
+            // Forward to checkin endpoint
             const res = await fetch('/api/checkin', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -226,10 +238,9 @@
             if (data.success) {
                 showMessage(`Chúc mừng ${name}, điểm danh thành công!`, 'success');
             } else {
-                showMessage(`${data.error || 'Lỗi điểm danh.'}`, 'error');
+                showMessage(data.error || 'Lỗi điểm danh.', 'error');
             }
         } catch (e) {
-            // Map raw error codes to friendly Vietnamese messages
             let friendly;
             switch (e.message) {
                 case 'no_file':
@@ -244,16 +255,13 @@
             }
             showMessage(friendly, 'error');
         } finally {
+            scanBar.classList.remove('scanning');
             toggleButton('faceScanBtn', false);
         }
-
-        scanBar.classList.remove('scanning');
-        toggleButton('faceScanBtn', false);
     }
 
-
     document.getElementById('faceScanBtn').addEventListener('click', faceCheckinFlow);
-    input.addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('searchBtn').click(); });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('searchBtn').click(); });
 </script>
 </body>
 </html>
